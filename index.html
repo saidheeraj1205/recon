@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReconX Security Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="logo">RX</div>
+            <div>
+                <h2>ReconX</h2>
+                <span>Security Scanner</span>
+            </div>
+        </div>
+
+        <nav>
+            <a class="active" href="#scan">Scan</a>
+            <a href="#summary">Summary</a>
+            <a href="#whois">WHOIS</a>
+            <a href="#dns">DNS</a>
+            <a href="#headers">Headers</a>
+            <a href="#ports">Ports</a>
+        </nav>
+
+        <div class="sidebar-note">
+            <strong>Ethical Use</strong>
+            <p>Scan only your own website or a target where you have permission.</p>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <section class="hero" id="scan">
+            <div>
+                <p class="eyebrow">Automated reconnaissance dashboard</p>
+                <h1>Website Security Recon Interface</h1>
+                <p class="hero-text">Check domain IP, WHOIS, DNS records, security headers, public files, and basic port status in one clean dashboard.</p>
+            </div>
+            <div class="status-card">
+                <span class="pulse"></span>
+                <p>Scanner Ready</p>
+                <small>Passive + basic checks</small>
+            </div>
+        </section>
+
+        <form method="POST" class="scan-form">
+            <div class="input-group">
+                <label>Target Domain</label>
+                <input type="text" name="domain" placeholder="example.com or https://example.com" required>
+            </div>
+
+            <label class="permission">
+                <input type="checkbox" name="permission" value="yes">
+                I confirm that I have permission to scan this target.
+            </label>
+
+            <button type="submit">Start Recon Scan</button>
+        </form>
+
+        {% if error %}
+        <div class="alert error">{{ error }}</div>
+        {% endif %}
+
+        {% if result %}
+        <section class="stats-grid" id="summary">
+            <div class="stat-card">
+                <span>Domain</span>
+                <strong>{{ result.domain }}</strong>
+            </div>
+            <div class="stat-card">
+                <span>IP Address</span>
+                <strong>{{ result.ip }}</strong>
+            </div>
+            <div class="stat-card">
+                <span>Risk Score</span>
+                <strong>{{ result.risk_score }}/100</strong>
+            </div>
+            <div class="stat-card risk-{{ result.risk_level|lower }}">
+                <span>Risk Level</span>
+                <strong>{{ result.risk_level }}</strong>
+            </div>
+        </section>
+
+        <section class="dashboard-grid">
+            <div class="panel large-panel">
+                <div class="panel-header">
+                    <h2>Target Summary</h2>
+                    <span>{{ result.time }}</span>
+                </div>
+                <div class="summary-box">
+                    <div class="risk-ring">
+                        <span>{{ result.risk_score }}</span>
+                        <small>Risk</small>
+                    </div>
+                    <div>
+                        <p><b>Domain:</b> {{ result.domain }}</p>
+                        <p><b>IP Address:</b> {{ result.ip }}</p>
+                        <p><b>Scan Time:</b> {{ result.time }}</p>
+                        <p><b>Risk Level:</b> {{ result.risk_level }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel" id="whois">
+                <div class="panel-header"><h2>WHOIS Information</h2></div>
+                <div class="info-list">
+                    <p><span>Domain Name</span>{{ result.whois.domain_name }}</p>
+                    <p><span>Registrar</span>{{ result.whois.registrar }}</p>
+                    <p><span>Creation Date</span>{{ result.whois.creation_date }}</p>
+                    <p><span>Expiration Date</span>{{ result.whois.expiration_date }}</p>
+                    <p><span>Name Servers</span>{{ result.whois.name_servers }}</p>
+                </div>
+            </div>
+
+            <div class="panel" id="dns">
+                <div class="panel-header"><h2>DNS Records</h2></div>
+                {% for type, records in result.dns.items() %}
+                    <div class="record-block">
+                        <h3>{{ type }} Records</h3>
+                        <ul>
+                            {% for record in records %}
+                                <li>{{ record }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div class="panel large-panel" id="headers">
+                <div class="panel-header">
+                    <h2>HTTP Security Headers</h2>
+                    <span>{{ result.security.status_code }}</span>
+                </div>
+                <p class="muted"><b>URL Tested:</b> {{ result.security.url }} | <b>Server:</b> {{ result.security.server }}</p>
+                <div class="table-wrap">
+                    <table>
+                        <tr><th>Header</th><th>Status</th></tr>
+                        {% for header, status in result.security.headers.items() %}
+                        <tr>
+                            <td>{{ header }}</td>
+                            <td><span class="badge {{ 'safe' if status == 'Present' else 'danger' }}">{{ status }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header"><h2>Public File Discovery</h2></div>
+                <div class="table-wrap">
+                    <table>
+                        <tr><th>File</th><th>Status</th></tr>
+                        {% for file, status in result.files.items() %}
+                        <tr>
+                            <td>{{ file }}</td>
+                            <td><span class="badge {{ 'safe' if status == 'Not Found' else 'warning' }}">{{ status }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                </div>
+            </div>
+
+            <div class="panel" id="ports">
+                <div class="panel-header"><h2>Basic Port Check</h2></div>
+                <div class="table-wrap">
+                    <table>
+                        <tr><th>Port</th><th>Service</th><th>Status</th></tr>
+                        {% for port in result.ports %}
+                        <tr>
+                            <td>{{ port.port }}</td>
+                            <td>{{ port.service }}</td>
+                            <td><span class="badge {{ 'danger' if port.status == 'Open' else 'safe' }}">{{ port.status }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                </div>
+            </div>
+        </section>
+        {% else %}
+        <section class="empty-state">
+            <h2>No scan yet</h2>
+            <p>Enter a domain above to generate a professional recon dashboard.</p>
+        </section>
+        {% endif %}
+    </main>
+</div>
+</body>
+</html>
